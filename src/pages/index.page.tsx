@@ -36,12 +36,30 @@ export default function HomePage({
 }
 
 export async function getStaticProps() {
-  const posts = await getBlogspotPosts().catch(() => []);
-  const props = { blogPosts: posts.slice(0, 8) };
+  console.log("[getStaticProps] Starting data fetching for the main page.");
+  console.log(`[getStaticProps] Netlify CONTEXT: ${process.env.CONTEXT}`);
 
-  const isDeployPreview = process.env.CONTEXT === "deploy-preview";
-  if (isDeployPreview) {
-    return { props };
-  } // fully static for previews
-  return { props, revalidate: 3600 }; // ISR for prod
+  try {
+    const posts = await getBlogspotPosts();
+    console.log(
+      `[getStaticProps] Successfully fetched ${posts.length} blog posts.`,
+    );
+    const props = { blogPosts: posts.slice(0, 8) };
+
+    const isDeployPreview = process.env.CONTEXT === "deploy-preview";
+    if (isDeployPreview) {
+      console.log("[getStaticProps] Deploy preview detected, disabling ISR.");
+      return { props };
+    }
+
+    console.log(
+      "[getStaticProps] Production environment detected, enabling ISR with revalidate: 3600.",
+    );
+    return { props, revalidate: 3600 }; // ISR for prod
+  } catch (error) {
+    console.error("[getStaticProps] Failed to fetch blog posts:", error);
+    // Fallback to returning an empty array of posts to prevent the page from crashing.
+    const props = { blogPosts: [] };
+    return { props, revalidate: 60 }; // Re-attempt after 60 seconds
+  }
 }
